@@ -1,0 +1,43 @@
+-- Create each measure separately in Power BI Desktop.
+-- Store the first four measures under forecast_vs_actual.
+
+Total Actual Demand =
+SUM ( 'forecast_vs_actual'[actual_compute_seconds] )
+
+Selected Model =
+SELECTEDVALUE ( 'forecast_vs_actual'[selected_model] )
+
+Test WAPE =
+VAR SelectedModelName = [Selected Model]
+RETURN
+    CALCULATE (
+        MAX ( 'model_performance'[WAPE] ),
+        REMOVEFILTERS ( 'model_performance' ),
+        'model_performance'[dataset_split] = "test",
+        'model_performance'[trigger] = "TOTAL",
+        'model_performance'[model] = SelectedModelName
+    )
+
+Recommended Capacity Headroom =
+DIVIDE (
+    CALCULATE (
+        MAX ( 'capacity_recommendation'[minimum_recommended_headroom_percent] ),
+        'capacity_recommendation'[is_minimum_recommended_headroom] = TRUE ()
+    ),
+    100
+)
+
+-- Store the final two measures under capacity_scenarios.
+
+Capacity View Point Forecast =
+MAX ( 'capacity_scenarios'[point_forecast] )
+
+Recommended Scenario Capacity =
+VAR RecommendedHeadroomPct = [Recommended Capacity Headroom] * 100
+RETURN
+    CALCULATE (
+        MAX ( 'capacity_scenarios'[capacity] ),
+        KEEPFILTERS (
+            'capacity_scenarios'[headroom_pct] = RecommendedHeadroomPct
+        )
+    )
